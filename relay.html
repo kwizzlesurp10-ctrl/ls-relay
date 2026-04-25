@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>LS Relay</title></head>
+<body>
+<script>
+const ALLOWED_ORIGINS = [
+  'https://grok.com',
+  'https://shadow-pivot.vercel.app',
+  'null'
+];
+
+window.addEventListener('message', (e) => {
+  const origin = e.origin === 'null' ? 'null' : e.origin;
+  if (!ALLOWED_ORIGINS.includes(origin)) {
+    console.warn('[LSRelay] Blocked origin:', e.origin);
+    return;
+  }
+
+  const { id, action, key, value } = e.data || {};
+  let result = null;
+  let error = null;
+
+  try {
+    switch (action) {
+      case 'set':
+        localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+        result = true;
+        break;
+      case 'get':
+        result = localStorage.getItem(key);
+        try { result = JSON.parse(result); } catch {}
+        break;
+      case 'del':
+        localStorage.removeItem(key);
+        result = true;
+        break;
+      case 'list':
+        result = Object.keys(localStorage);
+        break;
+      case 'clear':
+        localStorage.clear();
+        result = true;
+        break;
+      case 'ping':
+        result = 'pong';
+        break;
+      default:
+        error = 'Unknown action: ' + action;
+    }
+  } catch(err) {
+    error = err.message;
+  }
+
+  e.source.postMessage({ id, result, error }, e.origin === 'null' ? '*' : e.origin);
+});
+
+console.log('[LSRelay] Ready at origin:', location.origin);
+</script>
+</body>
+</html>
