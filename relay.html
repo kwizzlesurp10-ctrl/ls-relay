@@ -9,6 +9,18 @@ const ALLOWED_ORIGINS = [
   'null'
 ];
 
+// Announce ready to opener (popup pattern)
+function announceReady() {
+  const target = window.opener || null;
+  if (target) {
+    try { target.postMessage({ ready: true }, '*'); } catch(e) {}
+  }
+  console.log('[LSRelay] Ready at origin:', location.origin);
+}
+
+if (document.readyState === 'complete') announceReady();
+else window.addEventListener('load', announceReady);
+
 window.addEventListener('message', (e) => {
   const origin = e.origin === 'null' ? 'null' : e.origin;
   if (!ALLOWED_ORIGINS.includes(origin)) {
@@ -51,10 +63,14 @@ window.addEventListener('message', (e) => {
     error = err.message;
   }
 
-  e.source.postMessage({ id, result, error }, e.origin === 'null' ? '*' : e.origin);
+  // Reply to sender
+  const replyTarget = e.source || window.opener;
+  if (replyTarget) {
+    try { replyTarget.postMessage({ id, result, error }, e.origin === 'null' ? '*' : e.origin); } catch(err) {
+      console.warn('[LSRelay] Could not reply:', err.message);
+    }
+  }
 });
-
-console.log('[LSRelay] Ready at origin:', location.origin);
 </script>
 </body>
 </html>
